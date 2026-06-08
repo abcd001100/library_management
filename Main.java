@@ -79,7 +79,18 @@ public class Main {
                     else System.out.println("Book not found.");
                     break;
                 case 9:
-                    library.returnBook();
+                    System.out.print("Enter book title to return: ");
+                    String returnTitle = sc.nextLine();
+                    Book returnedBook = library.findBook(returnTitle);
+                    
+                    if (returnedBook != null) {
+                        library.returnBook();
+                        
+                        // EDITED PART: Triggers notification module upon book return
+                        NotificationManager.checkAndNotifyNextUser(returnedBook, library.getReservationQueue(returnedBook));
+                    } else {
+                        System.out.println("Book not found.");
+                    }
                     break;
                 case 10:
                     User currentUser = library.getLoggedInUser();
@@ -95,7 +106,23 @@ public class Main {
                     library.renewBook(rt);
                     break;
                 case 13:
-                    library.issueReservedBook();
+                    System.out.print("Enter book title to issue from reservation: ");
+                    String issueTitle = sc.nextLine();
+                    Book targetBook = library.findBook(issueTitle);
+                    
+                    if (targetBook != null) {
+                        ReservationQueue<User> queue = library.getReservationQueue(targetBook);
+                        if (queue != null && !queue.isEmpty()) {
+                            User nextStudent = queue.peek();
+                            
+                            // EDITED PART: Calculates hold duration and displays hold banner
+                            java.time.LocalDateTime expiry = ReservationHoldingManager.calculateHoldExpiry();
+                            ReservationHoldingManager.displayHoldStatus(targetBook.getTitle(), nextStudent.getName(), expiry);
+                        }
+                        library.issueReservedBook();
+                    } else {
+                        System.out.println("Book not found.");
+                    }
                     break;
                 case 0:
                     System.out.println("Goodbye!");

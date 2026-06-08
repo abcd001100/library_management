@@ -154,6 +154,11 @@ public class New_Library {
         if (returnedBook != null) {
             returnedBook.returnBook();
             System.out.println("Book returned successfully: " + returnedBook.getTitle());
+            
+            // EDITED PART: Automatically checks for waiting reservations right upon popping the return stack
+            if (!reservationQueue.isEmpty()) {
+                NotificationManager.checkAndNotifyNextUser(returnedBook, reservationQueue);
+            }
         }
     }
 
@@ -164,8 +169,11 @@ public class New_Library {
 
     public void issueReservedBook() {
         User nextUser = reservationQueue.dequeue();
-        if (nextUser != null)
+        if (nextUser != null) {
             System.out.println("Book issued to: " + nextUser.getName());
+        } else {
+            System.out.println("No reservations pending for this book.");
+        }
     }
 
     // Helper for Main.java
@@ -177,4 +185,9 @@ public class New_Library {
     }
 
     public User getLoggedInUser() { return loggedInUser; }
+
+    // EDITED PART: Accessor method allowing Main.java to read Shee's reservation queue layout directly
+    public ReservationQueue<User> getReservationQueue(Book book) {
+        return this.reservationQueue;
+    }
 }
