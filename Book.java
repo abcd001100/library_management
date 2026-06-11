@@ -24,7 +24,7 @@ public class Book {
     public String getTitle()         { return title; }
     public String getAuthor()        { return author; }
     public int getPublicationYear()  { return publicationYear; }
-    public String getGenre()         { return genre; }
+    public int getGenre()            { return genre; }
     public int getTotalCopies()      { return totalCopies; }
     public int getAvailableCopies()  { return availableCopies; }
     public LocalDate getDueDate()    { return dueDate; }
@@ -67,6 +67,11 @@ public class Book {
         }
         System.out.println("This book has no active due date.");
         return false;
+    }
+
+    // Added for ReservationHoldingManager compatibility
+    public void setAvailableCopies(int availableCopies) {
+        this.availableCopies = availableCopies;
     }
 
     @Override
