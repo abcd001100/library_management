@@ -1,4 +1,5 @@
 import java.util.ArrayList;
+import java.time.LocalDate;
 
 public class New_Library {
 
@@ -11,12 +12,16 @@ public class New_Library {
     private BorrowStack<Book> borrowStack;
     private ReservationQueue<User> reservationQueue;
 
+    // ── Abdulwahab / Amir — borrow history for fines & analytics ──
+    private ArrayList<BorrowRecord> borrowHistory;
+
     public New_Library() {
         users = new ArrayList<>();
         books = new ArrayList<>();
         loggedInUser = null;
         borrowStack = new BorrowStack<>();
         reservationQueue = new ReservationQueue<>();
+        borrowHistory = new ArrayList<>();
     }
 
     // ==========================================
@@ -129,7 +134,16 @@ public class New_Library {
         for (Book b : books) {
             if (b.getTitle().equalsIgnoreCase(title)) {
                 boolean hasPending = reservationQueue.getSize() > 0;
-                b.renew(hasPending);
+                if (b.renew(hasPending)) {
+                    // Keep the matching open borrow record's due date in sync
+                    for (int i = borrowHistory.size() - 1; i >= 0; i--) {
+                        BorrowRecord r = borrowHistory.get(i);
+                        if (r.getBookTitle().equalsIgnoreCase(title) && r.getReturnDate() == null) {
+                            r.setDueDate(b.getDueDate());
+                            break;
+                        }
+                    }
+                }
                 return;
             }
         }
@@ -137,12 +151,24 @@ public class New_Library {
     }
 
     // ==========================================
-    //   SHEE — STACK & QUEUE METHODS (unchanged)
+    //   SHEE — STACK & QUEUE METHODS
     // ==========================================
 
     public void borrowBook(Book book) {
+        if (loggedInUser == null) {
+            System.out.println("Please login first to borrow a book.");
+            return;
+        }
         if (book.borrow()) {
             borrowStack.push(book);
+
+            // Log this borrow for fine calculation & analytics
+            BorrowRecord record = new BorrowRecord(
+                    book.getTitle(), book.getGenre(),
+                    loggedInUser.getUsername(), loggedInUser.getName(),
+                    LocalDate.now(), book.getDueDate());
+            borrowHistory.add(record);
+
             System.out.println("Book borrowed! Due date: " + book.getDueDate());
         } else {
             System.out.println("Sorry, no copies available. Consider reserving it.");
@@ -152,9 +178,30 @@ public class New_Library {
     public void returnBook() {
         Book returnedBook = borrowStack.pop();
         if (returnedBook != null) {
+
+            // Find the matching open borrow record for this book (most recent unreturned)
+            BorrowRecord record = null;
+            for (int i = borrowHistory.size() - 1; i >= 0; i--) {
+                BorrowRecord r = borrowHistory.get(i);
+                if (r.getBookTitle().equals(returnedBook.getTitle()) && r.getReturnDate() == null) {
+                    record = r;
+                    break;
+                }
+            }
+
+            double fine = 0.0;
+            if (record != null) {
+                fine = FineManager.calculateFine(record.getDueDate(), LocalDate.now());
+                record.setReturnDate(LocalDate.now());
+                record.setFineAmount(fine);
+            }
+
             returnedBook.returnBook();
             System.out.println("Book returned successfully: " + returnedBook.getTitle());
-            
+
+            // Show fine notice if the book was overdue
+            FineManager.displayFineNotice(returnedBook.getTitle(), fine);
+
             // EDITED PART: Automatically checks for waiting reservations right upon popping the return stack
             if (!reservationQueue.isEmpty()) {
                 NotificationManager.checkAndNotifyNextUser(returnedBook, reservationQueue);
@@ -176,6 +223,32 @@ public class New_Library {
         }
     }
 
+    // ==========================================
+    //   ABDULWAHAB — FINE CALCULATION
+    // ==========================================
+
+    // Calculates total outstanding fines for the currently logged-in user
+    // based on books they still have out that are past their due date
+    public double calculateMyFines() {
+        if (loggedInUser == null) return 0.0;
+        double total = 0.0;
+        for (BorrowRecord r : borrowHistory) {
+            if (r.getUsername().equals(loggedInUser.getUsername()) && r.getReturnDate() == null) {
+                total += FineManager.calculateFine(r.getDueDate());
+            }
+        }
+        return total;
+    }
+
+    public void payMyFine() {
+        if (loggedInUser == null) {
+            System.out.println("Please login first.");
+            return;
+        }
+        double fine = calculateMyFines();
+        FineManager.simulatePayment(loggedInUser, fine);
+    }
+
     // Helper for Main.java
     public Book findBook(String title) {
         for (Book b : books) {
@@ -190,4 +263,9 @@ public class New_Library {
     public ReservationQueue<User> getReservationQueue(Book book) {
         return this.reservationQueue;
     }
+
+    // Accessors for Reports / Analytics (Abdulwahab & Amir)
+    public ArrayList<Book> getBooks() { return books; }
+    public ArrayList<User> getUsers() { return users; }
+    public ArrayList<BorrowRecord> getBorrowHistory() { return borrowHistory; }
 }

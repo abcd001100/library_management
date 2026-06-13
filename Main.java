@@ -26,6 +26,13 @@ public class Main {
             System.out.println("11. Check Due Date");
             System.out.println("12. Renew Book");
             System.out.println("13. Issue Reserved Book");
+            System.out.println("14. View My Fines");
+            System.out.println("15. Pay Fine");
+            System.out.println("16. Inventory Report");
+            System.out.println("17. Registered Users Report");
+            System.out.println("18. Borrow History Report");
+            System.out.println("19. Popular Books / Genres Analytics");
+            System.out.println("20. User Behavior Analytics");
             System.out.println("0. Exit");
             System.out.print("Choose: ");
             choice = sc.nextInt(); sc.nextLine();
@@ -124,6 +131,42 @@ public class Main {
                         System.out.println("Book not found.");
                     }
                     break;
+
+                // ===== ABDULWAHAB — FINE CALCULATION & PAYMENT =====
+                case 14:
+                    if (library.getLoggedInUser() == null) {
+                        System.out.println("Please login first.");
+                    } else {
+                        double fine = library.calculateMyFines();
+                        System.out.println("\n----------------------------------------");
+                        System.out.println("Outstanding fines for " + library.getLoggedInUser().getName() + ":");
+                        System.out.println("RM " + String.format("%.2f", fine));
+                        System.out.println("----------------------------------------\n");
+                    }
+                    break;
+                case 15:
+                    library.payMyFine();
+                    break;
+
+                // ===== ABDULWAHAB — REPORTS =====
+                case 16:
+                    Report.generateInventoryReport(library.getBooks());
+                    break;
+                case 17:
+                    Report.generateUserReport(library.getUsers());
+                    break;
+                case 18:
+                    Report.generateBorrowHistoryReport(library.getBorrowHistory());
+                    break;
+
+                // ===== AMIR — ANALYTICS =====
+                case 19:
+                    Report.generatePopularBooksReport(library.getBorrowHistory());
+                    break;
+                case 20:
+                    Report.generateUserActivityReport(library.getBorrowHistory());
+                    break;
+
                 case 0:
                     System.out.println("Goodbye!");
                     break;
