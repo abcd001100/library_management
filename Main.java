@@ -145,7 +145,26 @@ public class Main {
                     }
                     break;
                 case 15:
-                    library.payMyFine();
+                    if (library.getLoggedInUser() == null) {
+                        System.out.println("Please login first.");
+                    } else {
+                        System.out.println("Choose Payment Method:");
+                        System.out.println("1. Online Payment");
+                        System.out.println("2. Pay at Library");
+                        int payChoice = sc.nextInt(); sc.nextLine();
+
+                        double fineAmount = library.calculateMyFines();
+
+                        if (payChoice == 1) {
+                            System.out.println("Processing Online Payment...");
+                            FineManager.simulatePayment(library.getLoggedInUser(), fineAmount);
+                        } else if (payChoice == 2) {
+                            System.out.println("Paying at Library Counter...");
+                            FineManager.simulatePayment(library.getLoggedInUser(), fineAmount);
+                        } else {
+                            System.out.println("Invalid option.");
+                        }
+                    }
                     break;
 
                 // ===== ABDULWAHAB — REPORTS =====
