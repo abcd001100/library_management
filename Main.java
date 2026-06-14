@@ -85,25 +85,29 @@ public class Main {
                     if (bb != null) library.borrowBook(bb);
                     else System.out.println("Book not found.");
                     break;
+
+                // ── FIX 1: returnBook() now takes the title and handles
+                //           everything internally (stack log, fine check,
+                //           notification). Duplicate notification call removed.
                 case 9:
                     System.out.print("Enter book title to return: ");
                     String returnTitle = sc.nextLine();
-                    Book returnedBook = library.findBook(returnTitle);
-                    
-                    if (returnedBook != null) {
-                        library.returnBook();
-                        
-                        // EDITED PART: Triggers notification module upon book return
-                        NotificationManager.checkAndNotifyNextUser(returnedBook, library.getReservationQueue(returnedBook));
-                    } else {
-                        System.out.println("Book not found.");
-                    }
+                    library.returnBook(returnTitle);
                     break;
+
+                // ── FIX 2: Reserve Book now asks for the book title first
+                //           before adding the user to that book's queue.
                 case 10:
                     User currentUser = library.getLoggedInUser();
-                    if (currentUser != null) library.reserveBook(currentUser);
-                    else System.out.println("Please login first.");
+                    if (currentUser == null) {
+                        System.out.println("Please login first.");
+                    } else {
+                        System.out.print("Book title to reserve: ");
+                        String reserveTitle = sc.nextLine();
+                        library.reserveBook(currentUser, reserveTitle);
+                    }
                     break;
+
                 case 11:
                     System.out.print("Book title: "); String dt = sc.nextLine();
                     library.showDueDate(dt);
@@ -116,17 +120,17 @@ public class Main {
                     System.out.print("Enter book title to issue from reservation: ");
                     String issueTitle = sc.nextLine();
                     Book targetBook = library.findBook(issueTitle);
-                    
+
                     if (targetBook != null) {
                         ReservationQueue<User> queue = library.getReservationQueue(targetBook);
                         if (queue != null && !queue.isEmpty()) {
                             User nextStudent = queue.peek();
-                            
+
                             // EDITED PART: Calculates hold duration and displays hold banner
                             java.time.LocalDateTime expiry = ReservationHoldingManager.calculateHoldExpiry();
                             ReservationHoldingManager.displayHoldStatus(targetBook.getTitle(), nextStudent.getName(), expiry);
                         }
-                        library.issueReservedBook();
+                        library.issueReservedBook(issueTitle);
                     } else {
                         System.out.println("Book not found.");
                     }
