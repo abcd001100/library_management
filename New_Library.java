@@ -12,8 +12,8 @@ public class New_Library {
     // ── Shee's data structures ────────────────────────────────
     private BorrowStack<Book> borrowStack;
 
-    // FIX 2: Changed from a single global reservationQueue to a per-book
-    //         HashMap so each book has its own independent waiting list.
+    // FIXED: Changed from one global reservationQueue to a per-book HashMap
+    // so each book has its own independent waiting list
     private HashMap<String, ReservationQueue<User>> reservationQueues;
 
     // ── Abdulwahab / Amir — borrow history for fines & analytics ──
@@ -119,6 +119,7 @@ public class New_Library {
         System.out.println("Book not found.");
     }
 
+    // Due date notification
     public void showDueDate(String title) {
         for (Book b : books) {
             if (b.getTitle().equalsIgnoreCase(title)) {
@@ -132,13 +133,15 @@ public class New_Library {
         System.out.println("Book not found.");
     }
 
+    // Book renewal
     public void renewBook(String title) {
         for (Book b : books) {
             if (b.getTitle().equalsIgnoreCase(title)) {
-                // FIX 2 side-effect: check the correct per-book queue for pending reservations
+                // FIXED: check the correct per-book queue for pending reservations
                 ReservationQueue<User> queue = reservationQueues.get(title.toLowerCase());
                 boolean hasPending = (queue != null && queue.getSize() > 0);
                 if (b.renew(hasPending)) {
+                    // Keep the matching open borrow record's due date in sync
                     for (int i = borrowHistory.size() - 1; i >= 0; i--) {
                         BorrowRecord r = borrowHistory.get(i);
                         if (r.getBookTitle().equalsIgnoreCase(title) && r.getReturnDate() == null) {
@@ -185,11 +188,11 @@ public class New_Library {
         }
     }
 
-    // FIX 1: returnBook() now accepts the book title so it can correctly
-    //         identify which book is being returned, print the full internal
-    //         stack debug log, show the overdue fine check, and trigger the
-    //         per-book reservation notification — all in one place.
-    //         The duplicate notification call in Main.java case 9 is removed.
+    // FIXED: returnBook() now accepts the book title so it can correctly
+    // identify which book is being returned, print the full internal stack
+    // debug log, show the overdue fine check, and trigger the per-book
+    // reservation notification — all in one place.
+    // The duplicate notification call that was in Main.java case 9 is removed.
     public void returnBook(String title) {
         if (loggedInUser == null) {
             System.out.println("Please login first.");
@@ -230,14 +233,14 @@ public class New_Library {
         returnedBook.returnBook();
         System.out.println("Book returned successfully: " + returnedBook.getTitle());
 
-        // Internal stack debug output (matches Image 1)
+        // Internal stack debug output
         System.out.println();
         System.out.println("// Internal Stack operation (BorrowStack.pop)");
         System.out.println("// POP: [" + title + " - " + loggedInUser.getName() + "] -> removed from top of borrowStack");
         System.out.println("// Stack (top -> bottom): " + (borrowStack.isEmpty() ? "empty" : borrowStack.toString()));
         System.out.println("// Time Complexity: O(1)");
 
-        // Overdue fine check output (matches Image 1)
+        // Overdue fine check output
         LocalDate dueDate = record.getDueDate();
         LocalDate today = LocalDate.now();
         if (dueDate != null && today.isAfter(dueDate)) {
@@ -250,15 +253,15 @@ public class New_Library {
         FineManager.displayFineNotice(returnedBook.getTitle(), fine);
 
         // Notify next reserved user from this book's own queue (only once, here)
+        // This replaces the duplicate call that was in Main.java
         ReservationQueue<User> queue = reservationQueues.get(title.toLowerCase());
         if (queue != null && !queue.isEmpty()) {
             NotificationManager.checkAndNotifyNextUser(returnedBook, queue);
         }
     }
 
-    // FIX 2: reserveBook() now takes the book title so each book gets its
-    //         own reservation queue, and prints the full Queue debug log
-    //         matching Image 4.
+    // FIXED: reserveBook() now takes the book title so each book gets its
+    // own reservation queue, and prints the full Queue debug log
     public void reserveBook(User user, String bookTitle) {
         Book book = findBook(bookTitle);
         if (book == null) {
@@ -273,7 +276,7 @@ public class New_Library {
 
         System.out.println(user.getName() + " added to reservation waiting list.");
 
-        // Internal queue debug output (matches Image 4)
+        // Internal queue debug output
         System.out.println();
         System.out.println("// Internal Queue operation (ReservationQueue.enqueue)");
         System.out.println("// ENQUEUE: [" + user.getName() + "] -> placed at rear of reservationQueue");
@@ -281,8 +284,8 @@ public class New_Library {
         System.out.println("// Time Complexity: O(1)");
     }
 
-    // FIX 2 side-effect: issueReservedBook() now takes the book title so it
-    //                    dequeues from the correct per-book queue.
+    // FIXED: issueReservedBook() now takes the book title so it dequeues
+    // from the correct per-book queue
     public void issueReservedBook(String bookTitle) {
         String key = bookTitle.toLowerCase();
         ReservationQueue<User> queue = reservationQueues.get(key);
@@ -295,7 +298,7 @@ public class New_Library {
     }
 
     // ==========================================
-    //   ABDULWAHAB — FINE CALCULATION
+    //   Amir — FINE CALCULATION
     // ==========================================
 
     // Calculates total outstanding fines for the currently logged-in user
@@ -330,9 +333,10 @@ public class New_Library {
 
     public User getLoggedInUser() { return loggedInUser; }
 
-    // Updated: returns the per-book reservation queue from the HashMap
+    // FIXED: returns the per-book reservation queue from the HashMap
     public ReservationQueue<User> getReservationQueue(Book book) {
-        return reservationQueues.getOrDefault(book.getTitle().toLowerCase(), new ReservationQueue<>());
+        return reservationQueues.getOrDefault(
+            book.getTitle().toLowerCase(), new ReservationQueue<>());
     }
 
     // Accessors for Reports / Analytics (Abdulwahab & Amir)
