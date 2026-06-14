@@ -5,7 +5,6 @@ public class Main {
         New_Library library = new New_Library();
         Scanner sc = new Scanner(System.in);
 
-        // Seed some sample data so you can demo immediately
         library.addBook("The Great Gatsby", "F. Scott Fitzgerald", 1925, "Fiction", 3);
         library.addBook("Clean Code", "Robert Martin", 2008, "Technology", 2);
         library.registerUser("Abdulaziz", "KL", "0123456789", "az@email.com", "aziz", "pass123");
@@ -33,6 +32,11 @@ public class Main {
             System.out.println("18. Borrow History Report");
             System.out.println("19. Popular Books / Genres Analytics");
             System.out.println("20. User Behavior Analytics");
+            // ADDED: option 21 — lets you simulate an overdue borrow for demo purposes.
+            // You enter the book title and how many days ago it was "borrowed".
+            // If daysAgo > 14 the book is already past its due date so returning
+            // it immediately will trigger the fine calculation and overdue banner.
+            System.out.println("21. [DEMO] Simulate Overdue Borrow");
             System.out.println("0. Exit");
             System.out.print("Choose: ");
             choice = sc.nextInt(); sc.nextLine();
@@ -85,18 +89,11 @@ public class Main {
                     if (bb != null) library.borrowBook(bb);
                     else System.out.println("Book not found.");
                     break;
-
-                // ── FIX 1: returnBook() now takes the title and handles
-                //           everything internally (stack log, fine check,
-                //           notification). Duplicate notification call removed.
                 case 9:
                     System.out.print("Enter book title to return: ");
                     String returnTitle = sc.nextLine();
                     library.returnBook(returnTitle);
                     break;
-
-                // ── FIX 2: Reserve Book now asks for the book title first
-                //           before adding the user to that book's queue.
                 case 10:
                     User currentUser = library.getLoggedInUser();
                     if (currentUser == null) {
@@ -107,7 +104,6 @@ public class Main {
                         library.reserveBook(currentUser, reserveTitle);
                     }
                     break;
-
                 case 11:
                     System.out.print("Book title: "); String dt = sc.nextLine();
                     library.showDueDate(dt);
@@ -120,13 +116,10 @@ public class Main {
                     System.out.print("Enter book title to issue from reservation: ");
                     String issueTitle = sc.nextLine();
                     Book targetBook = library.findBook(issueTitle);
-
                     if (targetBook != null) {
                         ReservationQueue<User> queue = library.getReservationQueue(targetBook);
                         if (queue != null && !queue.isEmpty()) {
                             User nextStudent = queue.peek();
-
-                            // EDITED PART: Calculates hold duration and displays hold banner
                             java.time.LocalDateTime expiry = ReservationHoldingManager.calculateHoldExpiry();
                             ReservationHoldingManager.displayHoldStatus(targetBook.getTitle(), nextStudent.getName(), expiry);
                         }
@@ -135,8 +128,6 @@ public class Main {
                         System.out.println("Book not found.");
                     }
                     break;
-
-                // ===== Amir — FINE CALCULATION & PAYMENT =====
                 case 14:
                     if (library.getLoggedInUser() == null) {
                         System.out.println("Please login first.");
@@ -156,9 +147,7 @@ public class Main {
                         System.out.println("1. Online Payment");
                         System.out.println("2. Pay at Library");
                         int payChoice = sc.nextInt(); sc.nextLine();
-
                         double fineAmount = library.calculateMyFines();
-
                         if (payChoice == 1) {
                             System.out.println("Processing Online Payment...");
                             FineManager.simulatePayment(library.getLoggedInUser(), fineAmount);
@@ -170,8 +159,6 @@ public class Main {
                         }
                     }
                     break;
-
-                // ===== Amir — REPORTS =====
                 case 16:
                     Report.generateInventoryReport(library.getBooks());
                     break;
@@ -181,13 +168,34 @@ public class Main {
                 case 18:
                     Report.generateBorrowHistoryReport(library.getBorrowHistory());
                     break;
-
-                // ===== AMIR — ANALYTICS =====
                 case 19:
                     Report.generatePopularBooksReport(library.getBorrowHistory());
                     break;
                 case 20:
                     Report.generateUserActivityReport(library.getBorrowHistory());
+                    break;
+
+                // ADDED: case 21 — Simulate Overdue Borrow (demo only)
+                // Step 1: must be logged in
+                // Step 2: enter the book title
+                // Step 3: enter how many days ago the borrow happened
+                //         (use any number > 14 to be already overdue)
+                // Then just select option 9 (Return Book) to see the fine fire.
+                case 21:
+                    if (library.getLoggedInUser() == null) {
+                        System.out.println("Please login first.");
+                    } else {
+                        System.out.print("[DEMO] Book title to simulate overdue borrow: ");
+                        String overdueTitle = sc.nextLine();
+                        Book overdueBook = library.findBook(overdueTitle);
+                        if (overdueBook == null) {
+                            System.out.println("Book not found.");
+                        } else {
+                            System.out.print("[DEMO] How many days ago was it borrowed? (enter >14 to be overdue): ");
+                            int daysAgo = sc.nextInt(); sc.nextLine();
+                            library.borrowBookAsOverdue(overdueBook, daysAgo);
+                        }
+                    }
                     break;
 
                 case 0:
