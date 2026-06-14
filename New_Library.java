@@ -11,9 +11,6 @@ public class New_Library {
 
     // ── Shee's data structures ────────────────────────────────
     private BorrowStack<Book> borrowStack;
-
-    // FIXED: Changed from one global reservationQueue to a per-book HashMap
-    // so each book has its own independent waiting list
     private HashMap<String, ReservationQueue<User>> reservationQueues;
 
     // ── Abdulwahab / Amir — borrow history for fines & analytics ──
@@ -44,11 +41,16 @@ public class New_Library {
         System.out.println("User registered successfully! Welcome, " + name + ".");
     }
 
+    // MODIFIED: login() now calls checkDueDateWarnings() right after a
+    // successful login so the user immediately sees any overdue alerts or
+    // upcoming deadline reminders without having to select a menu option.
     public boolean login(String username, String password) {
         for (User u : users) {
             if (u.getUsername().equals(username) && u.getPassword().equals(password)) {
                 loggedInUser = u;
                 System.out.println("Login successful! Welcome back, " + u.getName() + ".");
+                // ADDED: check and show due date / overdue warnings on login
+                checkDueDateWarnings();
                 return true;
             }
         }
@@ -119,29 +121,30 @@ public class New_Library {
         System.out.println("Book not found.");
     }
 
-    // Due date notification
+    // MODIFIED: showDueDate() now also calls checkDueDateWarnings() so the
+    // user sees the warning banner alongside the raw due date text.
     public void showDueDate(String title) {
         for (Book b : books) {
             if (b.getTitle().equalsIgnoreCase(title)) {
-                if (b.getDueDate() != null)
+                if (b.getDueDate() != null) {
                     System.out.println("Due date for \"" + title + "\": " + b.getDueDate());
-                else
+                    // ADDED: show warning banner for this specific book
+                    NotificationManager.checkAndNotifyBorrower(loggedInUser, b.getTitle(), b.getDueDate());
+                } else {
                     System.out.println("This book is not currently borrowed.");
+                }
                 return;
             }
         }
         System.out.println("Book not found.");
     }
 
-    // Book renewal
     public void renewBook(String title) {
         for (Book b : books) {
             if (b.getTitle().equalsIgnoreCase(title)) {
-                // FIXED: check the correct per-book queue for pending reservations
                 ReservationQueue<User> queue = reservationQueues.get(title.toLowerCase());
                 boolean hasPending = (queue != null && queue.getSize() > 0);
                 if (b.renew(hasPending)) {
-                    // Keep the matching open borrow record's due date in sync
                     for (int i = borrowHistory.size() - 1; i >= 0; i--) {
                         BorrowRecord r = borrowHistory.get(i);
                         if (r.getBookTitle().equalsIgnoreCase(title) && r.getReturnDate() == null) {
@@ -167,17 +170,12 @@ public class New_Library {
         }
         if (book.borrow()) {
             borrowStack.push(book);
-
-            // Log this borrow for fine calculation & analytics
             BorrowRecord record = new BorrowRecord(
                     book.getTitle(), book.getGenre(),
                     loggedInUser.getUsername(), loggedInUser.getName(),
                     LocalDate.now(), book.getDueDate());
             borrowHistory.add(record);
-
             System.out.println("Book borrowed! Due date: " + book.getDueDate());
-
-            // Internal stack debug output
             System.out.println();
             System.out.println("// Internal Stack operation (BorrowStack.push)");
             System.out.println("// PUSH: [" + book.getTitle() + " - " + loggedInUser.getName() + "] -> pushed to top of borrowStack");
@@ -188,25 +186,51 @@ public class New_Library {
         }
     }
 
-    // FIXED: returnBook() now accepts the book title so it can correctly
-    // identify which book is being returned, print the full internal stack
-    // debug log, show the overdue fine check, and trigger the per-book
-    // reservation notification — all in one place.
-    // The duplicate notification call that was in Main.java case 9 is removed.
+    // ADDED: borrowBookAsOverdue() — demo/testing method that simulates a
+    // borrow from 'daysAgo' days in the past so the book is already overdue
+    // the moment you return it. For example, passing daysAgo=20 means:
+    //   simulated borrow date = today - 20 days
+    //   due date              = today - 20 + 14 = today - 6 days  (already 6 days overdue)
+    //   fine on return        = 6 × RM 0.50 = RM 3.00
+    // This is wired to menu option 21 in Main.java.
+    public void borrowBookAsOverdue(Book book, int daysAgo) {
+        if (loggedInUser == null) {
+            System.out.println("Please login first.");
+            return;
+        }
+        if (book.borrowAsOverdue(daysAgo)) {
+            borrowStack.push(book);
+            LocalDate simulatedBorrowDate = LocalDate.now().minusDays(daysAgo);
+            BorrowRecord record = new BorrowRecord(
+                    book.getTitle(), book.getGenre(),
+                    loggedInUser.getUsername(), loggedInUser.getName(),
+                    simulatedBorrowDate, book.getDueDate());
+            borrowHistory.add(record);
+            System.out.println("[DEMO] Book borrowed with simulated date " + daysAgo + " days ago.");
+            System.out.println("[DEMO] Simulated borrow date : " + simulatedBorrowDate);
+            System.out.println("[DEMO] Due date              : " + book.getDueDate());
+            if (LocalDate.now().isAfter(book.getDueDate())) {
+                long overdue = java.time.temporal.ChronoUnit.DAYS.between(book.getDueDate(), LocalDate.now());
+                System.out.println("[DEMO] Already overdue by " + overdue + " day(s) -> Fine if returned now: RM "
+                        + String.format("%.2f", overdue * 0.50));
+            } else {
+                System.out.println("[DEMO] Not yet overdue. Return before " + book.getDueDate() + " to avoid fine.");
+            }
+        } else {
+            System.out.println("Sorry, no copies available.");
+        }
+    }
+
     public void returnBook(String title) {
         if (loggedInUser == null) {
             System.out.println("Please login first.");
             return;
         }
-
-        // Find the book in the catalogue
         Book returnedBook = findBook(title);
         if (returnedBook == null) {
             System.out.println("Book not found.");
             return;
         }
-
-        // Find the most recent open borrow record for this user and book
         BorrowRecord record = null;
         for (int i = borrowHistory.size() - 1; i >= 0; i--) {
             BorrowRecord r = borrowHistory.get(i);
@@ -217,30 +241,21 @@ public class New_Library {
                 break;
             }
         }
-
         if (record == null) {
             System.out.println("No active borrow record found for: " + title);
             return;
         }
-
-        // Pop from borrow stack and update record
         borrowStack.pop();
-
         double fine = FineManager.calculateFine(record.getDueDate(), LocalDate.now());
         record.setReturnDate(LocalDate.now());
         record.setFineAmount(fine);
-
         returnedBook.returnBook();
         System.out.println("Book returned successfully: " + returnedBook.getTitle());
-
-        // Internal stack debug output
         System.out.println();
         System.out.println("// Internal Stack operation (BorrowStack.pop)");
         System.out.println("// POP: [" + title + " - " + loggedInUser.getName() + "] -> removed from top of borrowStack");
         System.out.println("// Stack (top -> bottom): " + (borrowStack.isEmpty() ? "empty" : borrowStack.toString()));
         System.out.println("// Time Complexity: O(1)");
-
-        // Overdue fine check output
         LocalDate dueDate = record.getDueDate();
         LocalDate today = LocalDate.now();
         if (dueDate != null && today.isAfter(dueDate)) {
@@ -248,35 +263,24 @@ public class New_Library {
         } else {
             System.out.printf("// Overdue check: Due date %s has not passed -> Fine = RM 0.00%n", dueDate);
         }
-
-        // Show fine notice if overdue
         FineManager.displayFineNotice(returnedBook.getTitle(), fine);
-
-        // Notify next reserved user from this book's own queue (only once, here)
-        // This replaces the duplicate call that was in Main.java
         ReservationQueue<User> queue = reservationQueues.get(title.toLowerCase());
         if (queue != null && !queue.isEmpty()) {
             NotificationManager.checkAndNotifyNextUser(returnedBook, queue);
         }
     }
 
-    // FIXED: reserveBook() now takes the book title so each book gets its
-    // own reservation queue, and prints the full Queue debug log
     public void reserveBook(User user, String bookTitle) {
         Book book = findBook(bookTitle);
         if (book == null) {
             System.out.println("Book not found: " + bookTitle);
             return;
         }
-
         String key = bookTitle.toLowerCase();
         reservationQueues.putIfAbsent(key, new ReservationQueue<>());
         ReservationQueue<User> queue = reservationQueues.get(key);
         queue.enqueue(user);
-
         System.out.println(user.getName() + " added to reservation waiting list.");
-
-        // Internal queue debug output
         System.out.println();
         System.out.println("// Internal Queue operation (ReservationQueue.enqueue)");
         System.out.println("// ENQUEUE: [" + user.getName() + "] -> placed at rear of reservationQueue");
@@ -284,8 +288,6 @@ public class New_Library {
         System.out.println("// Time Complexity: O(1)");
     }
 
-    // FIXED: issueReservedBook() now takes the book title so it dequeues
-    // from the correct per-book queue
     public void issueReservedBook(String bookTitle) {
         String key = bookTitle.toLowerCase();
         ReservationQueue<User> queue = reservationQueues.get(key);
@@ -301,8 +303,6 @@ public class New_Library {
     //   Amir — FINE CALCULATION
     // ==========================================
 
-    // Calculates total outstanding fines for the currently logged-in user
-    // based on books they still have out that are past their due date
     public double calculateMyFines() {
         if (loggedInUser == null) return 0.0;
         double total = 0.0;
@@ -323,7 +323,21 @@ public class New_Library {
         FineManager.simulatePayment(loggedInUser, fine);
     }
 
-    // Helper for Main.java
+    // ADDED: checkDueDateWarnings() — loops over all open borrow records for
+    // the currently logged-in user and calls NotificationManager to print
+    // a warning if a book is due within 3 days or already overdue.
+    // Called automatically on login and when the user selects "Check Due Date".
+    public void checkDueDateWarnings() {
+        if (loggedInUser == null) return;
+        for (BorrowRecord r : borrowHistory) {
+            if (r.getUsername().equals(loggedInUser.getUsername())
+                    && r.getReturnDate() == null) {
+                NotificationManager.checkAndNotifyBorrower(
+                        loggedInUser, r.getBookTitle(), r.getDueDate());
+            }
+        }
+    }
+
     public Book findBook(String title) {
         for (Book b : books) {
             if (b.getTitle().equalsIgnoreCase(title)) return b;
@@ -333,13 +347,11 @@ public class New_Library {
 
     public User getLoggedInUser() { return loggedInUser; }
 
-    // FIXED: returns the per-book reservation queue from the HashMap
     public ReservationQueue<User> getReservationQueue(Book book) {
         return reservationQueues.getOrDefault(
             book.getTitle().toLowerCase(), new ReservationQueue<>());
     }
 
-    // Accessors for Reports / Analytics (Abdulwahab & Amir)
     public ArrayList<Book> getBooks() { return books; }
     public ArrayList<User> getUsers() { return users; }
     public ArrayList<BorrowRecord> getBorrowHistory() { return borrowHistory; }
