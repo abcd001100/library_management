@@ -35,13 +35,47 @@ public class FineManager {
         }
     }
 
+    // ADDED: displayOverdueWarning() — prints a warning banner when a book is
+    // nearing its due date (3 days or fewer remaining) but NOT yet overdue.
+    // Called from New_Library.checkDueDateWarnings() on login and when
+    // the user selects "Check Due Date".
+    // Example output:
+    //   ⚠️  DUE DATE REMINDER
+    //   "Clean Code" is due in 2 day(s) on 2026-06-16. Please return it soon!
+    public static void displayOverdueWarning(String bookTitle, LocalDate dueDate, long daysRemaining) {
+        System.out.println("\n⚠️  DUE DATE REMINDER");
+        System.out.println("------------------------------------------------------------------");
+        System.out.println("\"" + bookTitle + "\" is due in " + daysRemaining
+                + " day(s) on " + dueDate + ".");
+        System.out.println("Please return it soon to avoid a fine of RM 0.50 per overdue day.");
+        System.out.println("------------------------------------------------------------------\n");
+    }
+
+    // ADDED: displayAlreadyOverdueWarning() — prints a warning banner when a
+    // book is already past its due date while still borrowed.
+    // Called from New_Library.checkDueDateWarnings() on login and when
+    // the user selects "Check Due Date".
+    // Example output:
+    //   🚨  OVERDUE ALERT
+    //   "Clean Code" was due on 2026-06-10. You are 4 day(s) overdue.
+    //   Current fine: RM 2.00. Return immediately to stop the fine growing.
+    public static void displayAlreadyOverdueWarning(String bookTitle, LocalDate dueDate,
+                                                     long overdueDays, double currentFine) {
+        System.out.println("\n🚨  OVERDUE ALERT");
+        System.out.println("------------------------------------------------------------------");
+        System.out.println("\"" + bookTitle + "\" was due on " + dueDate + ".");
+        System.out.println("You are " + overdueDays + " day(s) overdue.");
+        System.out.println("Current fine accumulating: RM " + String.format("%.2f", currentFine));
+        System.out.println("Please return immediately to stop the fine from growing.");
+        System.out.println("------------------------------------------------------------------\n");
+    }
+
     // Simulates a payment transaction (no real money/database involved)
     public static void simulatePayment(User user, double amount) {
         System.out.println("\n--------------------------------------------------");
         System.out.println("PAYMENT SIMULATION");
         System.out.println("--------------------------------------------------");
         System.out.println("User       : " + user.getName() + " (" + user.getUsername() + ")");
-
         if (amount <= 0) {
             System.out.println("Amount Due : RM 0.00");
             System.out.println("Status     : No outstanding fines. Nothing to pay!");
