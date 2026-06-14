@@ -136,7 +136,7 @@ public class Main {
                     }
                     break;
 
-                // ===== ABDULWAHAB — FINE CALCULATION & PAYMENT =====
+                // ===== Amir — FINE CALCULATION & PAYMENT =====
                 case 14:
                     if (library.getLoggedInUser() == null) {
                         System.out.println("Please login first.");
@@ -171,7 +171,7 @@ public class Main {
                     }
                     break;
 
-                // ===== ABDULWAHAB — REPORTS =====
+                // ===== Amir — REPORTS =====
                 case 16:
                     Report.generateInventoryReport(library.getBooks());
                     break;
